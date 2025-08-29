@@ -1,6 +1,4 @@
 import { Plot, OrderData, Order } from '../types/land';
-import dotenv from 'dotenv';
-dotenv.config();
 
 const API_BASE = import.meta.env.VITE_API_URL;
 fetch(`${API_BASE}/plots`);
@@ -321,6 +319,7 @@ class PlotService {
   async checkHealth(): Promise<boolean> {
     try {
       const response = await fetch(`${API_BASE}/health`, {
+   
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
