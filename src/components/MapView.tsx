@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import PlotOrderModal from "./PlotOrderModal";
@@ -482,10 +482,10 @@ const MapView: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const controller = new AbortController();
-      const signal = controller.signal;
+  // const controller = new AbortController();
+  // const signal = controller.signal;
 
-      const plotsData = await plotService.getAllPlots(signal);
+  const plotsData = await plotService.getAllPlots();
       if (!plotsData?.length) {
         setError("No land plots available.");
         return;
