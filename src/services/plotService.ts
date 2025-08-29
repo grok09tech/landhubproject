@@ -1,6 +1,8 @@
 import { Plot, OrderData, Order } from '../types/land';
+import dotenv from 'dotenv';
+dotenv.config();
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.VITE_API_URL || '';
 
 // helper to normalize status from API → union type
 function normalizeStatus(status: string | null | undefined): "available" | "taken" | "pending" {
