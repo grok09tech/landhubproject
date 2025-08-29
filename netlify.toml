@@ -26,3 +26,6 @@
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+
+[secrets]
+  omit_keys = ["VITE_API_URL", "VITE_SUPABASE_ANON_KEY", "VITE_SUPABASE_URL"]
