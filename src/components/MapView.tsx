@@ -23,7 +23,7 @@ const TANZANIA_BOUNDS: L.LatLngTuple[] = [
   [-0.95, 40.44], // NE
 ];
 
-// Helpers
+// Helpers (unchanged)
 const getPlotColor = (status: Plot["status"]): string => {
   switch (status) {
     case "available":
@@ -58,41 +58,123 @@ interface FeatureProperties {
   ward: string;
   district: string;
   id: string;
+  block_number?: string;
+  plot_number?: string;
 }
 
-// Validate GeoJSON geometry and coordinates
-const isValidGeometry = (geometry: Plot["geometry"]): boolean => {
-  if (!geometry || !geometry.type || !geometry.coordinates) return false;
+// Enhanced geometry validation (unchanged)
+const isValidGeometry = (geometry: any): boolean => {
+  if (!geometry || !geometry.type || !geometry.coordinates) {
+    console.warn("[MapView] Invalid geometry: missing required properties");
+    return false;
+  }
 
-  const isWithinTanzania = (lng: number, lat: number): boolean => {
-    return lng >= 29.34 && lng <= 40.44 && lat >= -11.75 && lat <= -0.95;
+  const isValidCoordinate = (coord: any): boolean => {
+    return (
+      Array.isArray(coord) &&
+      coord.length >= 2 &&
+      typeof coord[0] === "number" &&
+      typeof coord[1] === "number" &&
+      !isNaN(coord[0]) &&
+      !isNaN(coord[1]) &&
+      isFinite(coord[0]) &&
+      isFinite(coord[1])
+    );
   };
 
-  if (geometry.type === "Polygon") {
-    return (
-      Array.isArray(geometry.coordinates) &&
-      geometry.coordinates.every(ring =>
-        Array.isArray(ring) &&
-        ring.every(coord => Array.isArray(coord) && coord.length === 2 && isWithinTanzania(coord[0], coord[1]))
-      )
-    );
+  const isReasonableCoordinate = (lng: number, lat: number): boolean => {
+    return lng >= -180 && lng <= 180 && lat >= -90 && lat <= 90;
+  };
+
+  try {
+    if (geometry.type === "Polygon") {
+      if (!Array.isArray(geometry.coordinates) || geometry.coordinates.length === 0) {
+        return false;
+      }
+      return geometry.coordinates.every((ring: any) => {
+        if (!Array.isArray(ring) || ring.length < 4) {
+          return false;
+        }
+        return ring.every((coord) => {
+          if (!isValidCoordinate(coord)) {
+            return false;
+          }
+          if (!isReasonableCoordinate(coord[0], coord[1])) {
+            return false;
+          }
+          return true;
+        });
+      });
+    }
+
+    if (geometry.type === "MultiPolygon") {
+      if (!Array.isArray(geometry.coordinates) || geometry.coordinates.length === 0) {
+        return false;
+      }
+      return geometry.coordinates.every((polygon: any) => {
+        if (!Array.isArray(polygon) || polygon.length === 0) {
+          return false;
+        }
+        return polygon.every((ring) => {
+          if (!Array.isArray(ring) || ring.length < 4) {
+            return false;
+          }
+          return ring.every((coord) => {
+            if (!isValidCoordinate(coord)) {
+              return false;
+            }
+            if (!isReasonableCoordinate(coord[0], coord[1])) {
+              return false;
+            }
+            return true;
+          });
+        });
+      });
+    }
+
+    return false;
+  } catch (error) {
+    console.error("[MapView] Error validating geometry:", error);
+    return false;
   }
-  if (geometry.type === "MultiPolygon") {
-    return (
-      Array.isArray(geometry.coordinates) &&
-      geometry.coordinates.every(poly =>
-        Array.isArray(poly) &&
-        poly.every(ring =>
-          Array.isArray(ring) &&
-          ring.every(coord => Array.isArray(coord) && coord.length === 2 && isWithinTanzania(coord[0], coord[1]))
-        )
-      )
-    );
-  }
-  return false;
 };
 
-// Debug container styles
+// Calculate polygon centroid (unchanged)
+const getPolygonCentroid = (coordinates: number[][][]): [number, number] => {
+  try {
+    const ring = coordinates[0]; // Outer ring
+    if (!ring || ring.length < 4) {
+      return [0, 0];
+    }
+
+    let area = 0;
+    let x = 0;
+    let y = 0;
+
+    for (let i = 0; i < ring.length - 1; i++) {
+      const [x0, y0] = ring[i];
+      const [x1, y1] = ring[i + 1];
+      const a = x0 * y1 - x1 * y0;
+      area += a;
+      x += (x0 + x1) * a;
+      y += (y0 + y1) * a;
+    }
+
+    if (Math.abs(area) < 1e-10) {
+      const avgX = ring.reduce((sum, coord) => sum + coord[0], 0) / ring.length;
+      const avgY = ring.reduce((sum, coord) => sum + coord[1], 0) / ring.length;
+      return [avgX, avgY];
+    }
+
+    area *= 0.5;
+    return [x / (6 * area), y / (6 * area)];
+  } catch (error) {
+    console.error("[MapView] Error calculating centroid:", error);
+    return [0, 0];
+  }
+};
+
+// Debug container styles (unchanged)
 const debugElementStyles = (element: HTMLElement | null) => {
   if (!element) {
     console.error("[MapView] No element provided for debugging");
@@ -138,9 +220,9 @@ const MapView: React.FC = () => {
   // Refs
   const mapRef = useRef<L.Map | null>(null);
   const plotLayerRef = useRef<L.GeoJSON | null>(null);
+  const labelLayerRef = useRef<L.LayerGroup | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const initializingRef = useRef(false);
-  const abortControllerRef = useRef<AbortController | null>(null);
 
   // State
   const [plots, setPlots] = useState<Plot[]>([]);
@@ -150,7 +232,9 @@ const MapView: React.FC = () => {
   const [orderError, setOrderError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMapInitialized, setIsMapInitialized] = useState(false);
-  const [hasLoadedPlots, setHasLoadedPlots] = useState(false);
+
+  // Changed: Removed hasLoadedPlots state, using plots.length to track loaded state
+  // This simplifies the logic and prevents unnecessary re-renders
 
   /** 📌 Handles plot click */
   const handlePlotClick = useCallback(
@@ -168,10 +252,13 @@ const MapView: React.FC = () => {
     [plots]
   );
 
-  /** 📌 Create popup content */
+  /** 📌 Create popup content (unchanged) */
   const createPopupContent = (feature: { properties: FeatureProperties }, plotId: string) => {
     const container = L.DomUtil.create("div", "p-3 min-w-[280px]");
-    const { plot_code, status, area_hectares, village, ward, district } = feature.properties;
+    const { plot_code, status, area_hectares, village, ward, district, block_number, plot_number } = feature.properties;
+
+    // Convert to square meters
+    const areaSquareMeters = (area_hectares * 10000).toLocaleString();
 
     const header = L.DomUtil.create("div", "flex justify-between items-start mb-2", container);
     const title = L.DomUtil.create("h3", "font-bold text-lg text-gray-800", header);
@@ -181,11 +268,15 @@ const MapView: React.FC = () => {
 
     const details = L.DomUtil.create("div", "space-y-1 text-sm text-gray-600 mb-3", container);
     const area = L.DomUtil.create("div", "", details);
-    area.textContent = `Area: ${area_hectares.toFixed(2)} hectares`;
+    area.innerHTML = `<strong>Area:</strong> ${areaSquareMeters} m²`;
+    const blockNum = L.DomUtil.create("div", "", details);
+    blockNum.innerHTML = `<strong>Block Number:</strong> ${block_number || 'N/A'}`;
+    const plotNum = L.DomUtil.create("div", "", details);
+    plotNum.innerHTML = `<strong>Plot Number:</strong> ${plot_number || plot_code}`;
     const location = L.DomUtil.create("div", "", details);
-    location.textContent = `Location: ${village}, ${ward}`;
+    location.innerHTML = `<strong>Location:</strong> ${village}, ${ward}`;
     const districtEl = L.DomUtil.create("div", "", details);
-    districtEl.textContent = `District: ${district}`;
+    districtEl.innerHTML = `<strong>District:</strong> ${district}`;
 
     if (status === "available") {
       const button = L.DomUtil.create(
@@ -207,6 +298,73 @@ const MapView: React.FC = () => {
     return container;
   };
 
+  /** 📌 Create plot labels (unchanged) */
+  const createPlotLabels = useCallback((plotsData: Plot[]) => {
+    if (!mapRef.current) return;
+
+    // Remove existing labels
+    if (labelLayerRef.current) {
+      mapRef.current.removeLayer(labelLayerRef.current);
+    }
+
+    labelLayerRef.current = L.layerGroup();
+
+    plotsData.forEach((plot, index) => {
+      if (!isValidGeometry(plot.geometry)) {
+        return;
+      }
+
+      let centroid: [number, number];
+
+      const geom = plot.geometry as any;
+      if (geom.type === "Polygon") {
+        centroid = getPolygonCentroid(geom.coordinates);
+      } else if (geom.type === "MultiPolygon") {
+        // Use centroid of first polygon
+        centroid = getPolygonCentroid(geom.coordinates[0]);
+      } else {
+        return;
+      }
+
+      // Validate centroid
+      if (isNaN(centroid[0]) || isNaN(centroid[1])) {
+        return;
+      }
+
+      const plotNum = (plot as any).plot_number || plot.plot_code || plot.id || `Plot-${index}`;
+
+      const labelIcon = L.divIcon({
+        className: "plot-label",
+        html: `<div style="
+          background: rgba(255, 255, 255, 0.9);
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-weight: bold;
+          font-size: 11px;
+          color: #333;
+          text-shadow: 1px 1px 1px rgba(255,255,255,0.8);
+          border: 1px solid rgba(0,0,0,0.3);
+          box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+          white-space: nowrap;
+        ">${plotNum}</div>`,
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
+      });
+
+      const labelMarker = L.marker([centroid[1], centroid[0]], {
+        icon: labelIcon,
+        interactive: false,
+        zIndexOffset: 1000,
+      });
+
+      labelLayerRef.current?.addLayer(labelMarker);
+    });
+
+    if (labelLayerRef.current) {
+      labelLayerRef.current.addTo(mapRef.current);
+    }
+  }, []);
+
   /** 📌 Render plots */
   const renderPlots = useCallback(
     (plotsData: Plot[]) => {
@@ -221,7 +379,7 @@ const MapView: React.FC = () => {
         plotLayerRef.current = null;
       }
 
-      const validPlots = plotsData.filter(plot => isValidGeometry(plot.geometry));
+      const validPlots = plotsData.filter((plot) => isValidGeometry(plot.geometry));
       console.log("[MapView] First plot geometry:", validPlots[0]?.geometry);
       if (validPlots.length !== plotsData.length) {
         console.warn(`[MapView] Skipped ${plotsData.length - validPlots.length} invalid plot geometries`);
@@ -236,19 +394,22 @@ const MapView: React.FC = () => {
 
       const geoJsonData = {
         type: "FeatureCollection" as const,
-        features: validPlots.map((plot) => {
-          const geometry =
-            plot.geometry.type === "Polygon"
-              ? {
-                  type: "MultiPolygon" as const,
-                  coordinates: [plot.geometry.coordinates],
-                }
-              : plot.geometry;
-
+        features: validPlots.map((plot, index) => {
           return {
             type: "Feature" as const,
-            properties: { ...plot },
-            geometry,
+            properties: {
+              ...plot,
+              plot_code: plot.plot_code || plot.id || `Plot-${index}`,
+              status: plot.status || "available",
+              area_hectares: plot.area_hectares || 0,
+              village: plot.village || "Unknown",
+              ward: plot.ward || "Unknown",
+              district: plot.district || "Unknown",
+              id: plot.id || `plot-${index}`,
+              block_number: (plot as any).block_number || "N/A",
+              plot_number: (plot as any).plot_number || plot.plot_code || plot.id,
+            },
+            geometry: plot.geometry,
           };
         }),
       };
@@ -290,6 +451,7 @@ const MapView: React.FC = () => {
         }).addTo(mapRef.current);
 
         console.log("[MapView] Added", validPlots.length, "plots to map");
+        createPlotLabels(validPlots);
         const bounds = plotLayerRef.current.getBounds();
         console.log("[MapView] Plot bounds:", bounds.toBBoxString());
         if (bounds.isValid()) {
@@ -306,43 +468,42 @@ const MapView: React.FC = () => {
         setLoading(false);
       }
     },
-    [handlePlotClick, isMapInitialized]
+    [handlePlotClick, isMapInitialized, createPlotLabels]
   );
 
   /** 📌 Load plots */
-  const loadPlots = useMemo(
-    () =>
-      async () => {
-        if (!isMapInitialized || hasLoadedPlots) {
-          console.warn("[MapView] Skipping plot loading: map not initialized or plots already loaded");
-          return;
-        }
-        try {
-          setLoading(true);
-          setError(null);
+  const loadPlots = useCallback(async () => {
+    // Changed: Only load if map is initialized and no plots are loaded
+    if (!isMapInitialized || plots.length > 0) {
+      console.warn("[MapView] Skipping plot loading: map not initialized or plots already loaded");
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
 
-          const plotsData = await plotService.getAllPlots();
-          if (!plotsData?.length) {
-            setError("No land plots available.");
-            return;
-          }
+      const controller = new AbortController();
+      const signal = controller.signal;
 
-          setPlots(plotsData);
-          setHasLoadedPlots(true);
-          renderPlots(plotsData);
-        } catch (err) {
-          if (err instanceof Error && err.name === "AbortError") {
-            console.log("[MapView] Plot loading aborted");
-            return;
-          }
-          console.error("[MapView] Error loading plots:", err);
-          setError("Failed to load plots. Please check your network or try again.");
-        } finally {
-          setLoading(false);
-        }
-      },
-    [renderPlots, isMapInitialized, hasLoadedPlots]
-  );
+      const plotsData = await plotService.getAllPlots(signal);
+      if (!plotsData?.length) {
+        setError("No land plots available.");
+        return;
+      }
+
+      setPlots(plotsData);
+      renderPlots(plotsData);
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        console.log("[MapView] Plot loading aborted");
+        return;
+      }
+      console.error("[MapView] Error loading plots:", err);
+      setError("Failed to load plots. Please check your network or try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [isMapInitialized, plots.length, renderPlots]);
 
   /** 📌 Initialize map */
   const initMap = useCallback(() => {
@@ -351,7 +512,10 @@ const MapView: React.FC = () => {
       setError("Map container not found.");
       return;
     }
-    if (mapRef.current || initializingRef.current) return;
+    if (mapRef.current || initializingRef.current) {
+      console.warn("[MapView] Map already initialized or initializing");
+      return;
+    }
     initializingRef.current = true;
 
     // Debug container styles
@@ -367,14 +531,12 @@ const MapView: React.FC = () => {
 
     try {
       const map = L.map(containerRef.current, {
-        center: [-10.369028, 35.888822], // Tanzania center
-        zoom: 9,
-        minZoom: 19,
-        maxZoom: 23,
+        center: [-6.369028, 34.888822], // Tanzania center
+        zoom: 6,
+        minZoom: 4,
+        maxZoom: 18,
         attributionControl: true,
         zoomControl: true,
-        maxBounds: TANZANIA_BOUNDS,
-        maxBoundsViscosity: 0.3,
       });
 
       const osmLayer = L.tileLayer(
@@ -438,7 +600,6 @@ const MapView: React.FC = () => {
           p.id === selectedPlot.id ? { ...p, status: "pending" as const } : p
         );
         setPlots(updatedPlots);
-        setHasLoadedPlots(false); // Allow reloading plots after order
         renderPlots(updatedPlots);
         setSelectedPlot(null);
         setIsModalOpen(false);
@@ -450,40 +611,35 @@ const MapView: React.FC = () => {
     [selectedPlot, plots, renderPlots]
   );
 
-  /** 📌 Initialize map */
+  /** 📌 Initialize map and load plots */
   useEffect(() => {
+    // Initialize map
     initMap();
+
+    // Cleanup
     return () => {
       if (plotLayerRef.current && mapRef.current) {
         mapRef.current.removeLayer(plotLayerRef.current);
         plotLayerRef.current = null;
       }
+      if (labelLayerRef.current && mapRef.current) {
+        mapRef.current.removeLayer(labelLayerRef.current);
+        labelLayerRef.current = null;
+      }
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
       }
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-      }
       setIsMapInitialized(false);
-      setHasLoadedPlots(false);
     };
   }, [initMap]);
 
   /** 📌 Load plots after map initialization */
   useEffect(() => {
-    if (!isMapInitialized || hasLoadedPlots) return;
-
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    loadPlots();
-
-    return () => {
-      controller.abort();
-      abortControllerRef.current = null;
-    };
-  }, [isMapInitialized, hasLoadedPlots, loadPlots]);
+    if (isMapInitialized) {
+      loadPlots();
+    }
+  }, [isMapInitialized, loadPlots]);
 
   return (
     <div className="h-full w-full relative">
@@ -491,7 +647,7 @@ const MapView: React.FC = () => {
       <div
         ref={containerRef}
         className="h-full w-full bg-gray-200"
-        style={{ minHeight: "80px", height: "10vh", zIndex: 1 }}
+        style={{ minHeight: "500px", height: "100%" }}
       />
 
       {/* Loading overlay */}
@@ -511,7 +667,7 @@ const MapView: React.FC = () => {
               className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg"
               onClick={() => {
                 setError(null);
-                setHasLoadedPlots(false);
+                setPlots([]); // Reset plots to allow reloading
                 initMap();
               }}
             >

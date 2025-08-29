@@ -87,3 +87,4 @@ CREATE TABLE IF NOT EXISTS public.shapefile_imports (
 );
 
 CREATE INDEX IF NOT EXISTS idx_shapefile_imports_bbox ON public.shapefile_imports USING GIST (bbox);
+=

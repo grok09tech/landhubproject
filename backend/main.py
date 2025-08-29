@@ -284,4 +284,4 @@ async def get_shapefile_import(dataset_name: str, db: Session = Depends(get_db))
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)
