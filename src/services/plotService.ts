@@ -2,7 +2,8 @@ import { Plot, OrderData, Order } from '../types/land';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const API_BASE_URL = process.env.VITE_API_URL || '';
+const API_BASE = import.meta.env.VITE_API_URL;
+fetch(`${API_BASE}/plots`);
 
 // helper to normalize status from API → union type
 function normalizeStatus(status: string | null | undefined): "available" | "taken" | "pending" {
@@ -55,7 +56,7 @@ class PlotService {
   async getAllPlots(): Promise<Plot[]> {
     try {
       console.log('Fetching all plots from API...');
-      const response = await this.fetchWithErrorHandling(`${API_BASE_URL}/api/plots`);
+      const response = await this.fetchWithErrorHandling(`${API_BASE}/api/plots`);
       const data = await response.json();
       
       console.log('Raw API response:', data);
@@ -134,7 +135,7 @@ class PlotService {
   async getPlotById(plotId: string): Promise<Plot | null> {
     try {
       console.log(`Fetching plot ${plotId}...`);
-      const response = await this.fetchWithErrorHandling(`${API_BASE_URL}/api/plots/${plotId}`);
+      const response = await this.fetchWithErrorHandling(`${API_BASE}/api/plots/${plotId}`);
       const feature = await response.json();
       
       if (!feature.properties || !feature.geometry) {
@@ -184,7 +185,7 @@ class PlotService {
       }
       
       const response = await this.fetchWithErrorHandling(
-        `${API_BASE_URL}/api/plots/${plotId}/order`,
+        `${API_BASE}/api/plots/${plotId}/order`,
         {
           method: 'POST',
           body: JSON.stringify(orderData),
@@ -220,7 +221,7 @@ class PlotService {
         }
       });
       
-      const url = `${API_BASE_URL}/api/plots/search?${params.toString()}`;
+      const url = `${API_BASE}/api/plots/search?${params.toString()}`;
       console.log(`Searching plots with filters:`, filters);
       
       const response = await this.fetchWithErrorHandling(url);
@@ -269,7 +270,7 @@ class PlotService {
   }> {
     try {
       console.log('Fetching system statistics...');
-      const response = await this.fetchWithErrorHandling(`${API_BASE_URL}/api/stats`);
+      const response = await this.fetchWithErrorHandling(`${API_BASE}/api/stats`);
       const stats = await response.json();
       
       console.log('System stats:', stats);
@@ -301,7 +302,7 @@ class PlotService {
         });
       }
       
-      const url = `${API_BASE_URL}/api/orders?${params.toString()}`;
+      const url = `${API_BASE}/api/orders?${params.toString()}`;
       console.log('Fetching orders...');
       
       const response = await this.fetchWithErrorHandling(url);
@@ -319,7 +320,7 @@ class PlotService {
   // Health check method
   async checkHealth(): Promise<boolean> {
     try {
-      const response = await fetch(`${API_BASE_URL}/health`, {
+      const response = await fetch(`${API_BASE}/health`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
