@@ -255,7 +255,7 @@ const MapView: React.FC = () => {
   /** 📌 Create popup content (unchanged) */
   const createPopupContent = (feature: { properties: FeatureProperties }, plotId: string) => {
     const container = L.DomUtil.create("div", "p-3 min-w-[280px]");
-    const { plot_code, status, area_hectares, village, ward, district, block_number, plot_number } = feature.properties;
+    const { plot_code, status, area_hectares, block_number, plot_number } = feature.properties;
 
     // Convert to square meters
     const areaSquareMeters = (area_hectares * 10000).toLocaleString();
@@ -273,10 +273,6 @@ const MapView: React.FC = () => {
     blockNum.innerHTML = `<strong>Block Number:</strong> ${block_number || 'N/A'}`;
     const plotNum = L.DomUtil.create("div", "", details);
     plotNum.innerHTML = `<strong>Plot Number:</strong> ${plot_number || plot_code}`;
-    const location = L.DomUtil.create("div", "", details);
-    location.innerHTML = `<strong>Location:</strong> ${village}, ${ward}`;
-    const districtEl = L.DomUtil.create("div", "", details);
-    districtEl.innerHTML = `<strong>District:</strong> ${district}`;
 
     if (status === "available") {
       const button = L.DomUtil.create(
