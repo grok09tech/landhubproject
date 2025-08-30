@@ -17,9 +17,6 @@ class OrderService:
     ) -> PlotOrderResponse:
         """Create a new plot order"""
         try:
-            # Start transaction
-            db.begin()
-            
             # Create the order
             order = PlotOrder(
                 plot_id=plot_id,
@@ -39,7 +36,7 @@ class OrderService:
                 plot.status = 'pending'
                 db.add(plot)
             
-            db.commit()
+            db.refresh(order)  # Refresh to get updated timestamps
             
             # Return the created order
             return PlotOrderResponse(
@@ -55,7 +52,6 @@ class OrderService:
             )
             
         except Exception as e:
-            db.rollback()
             logger.error(f"Error creating order for plot {plot_id}: {e}")
             raise
     
@@ -149,8 +145,6 @@ class OrderService:
     ) -> Optional[PlotOrder]:
         """Update order status and handle plot status changes"""
         try:
-            db.begin()
-            
             # Get the order
             order = db.query(PlotOrder).filter(PlotOrder.id == order_id).first()
             if not order:
@@ -180,13 +174,11 @@ class OrderService:
                 db.add(plot)
             
             db.add(order)
-            db.commit()
             
             logger.info(f"Order {order_id} status updated from {old_status} to {new_status}")
             return order
             
         except Exception as e:
-            db.rollback()
             logger.error(f"Error updating order {order_id} status: {e}")
             raise
     
