@@ -29,3 +29,4 @@
 
 [secrets]
   omit_keys = ["VITE_API_URL", "VITE_SUPABASE_ANON_KEY", "VITE_SUPABASE_URL"]
+  omit_paths = ["dist/assets/*.js", "dist/assets/*.css"]
