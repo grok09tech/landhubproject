@@ -13,23 +13,19 @@ export interface Plot {
 }
 
 export interface OrderData {
-  customer_name: string;
+  first_name: string;
+  last_name: string;
   customer_phone: string;
-  customer_email?: string;
-  customer_id_number: string;
-  intended_use: 'residential' | 'commercial' | 'agricultural' | 'industrial' | 'mixed';
-  notes?: string;
+  customer_email: string;
 }
 
 export interface Order {
   id: string;
   plot_id: string;
-  customer_name: string;
+  first_name: string;
+  last_name: string;
   customer_phone: string;
-  customer_email?: string;
-  customer_id_number: string;
-  intended_use: string;
-  notes?: string;
+  customer_email: string;
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
   updated_at: string;

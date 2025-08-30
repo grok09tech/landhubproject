@@ -1,5 +1,5 @@
 // Simple test script to verify backend API is working
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'https://landhubproject.onrender.com';
 
 async function testAPI() {
   console.log('Testing backend API connection...');

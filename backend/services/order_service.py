@@ -23,11 +23,10 @@ class OrderService:
             # Create the order
             order = PlotOrder(
                 plot_id=plot_id,
-                customer_name=order_data.customer_name,
+                first_name=order_data.first_name,
+                last_name=order_data.last_name,
                 customer_phone=order_data.customer_phone,
                 customer_email=order_data.customer_email,
-                customer_id_number=order_data.customer_id_number,
-                intended_use=order_data.intended_use.value,
                 status='pending'
             )
             
@@ -46,12 +45,10 @@ class OrderService:
             return PlotOrderResponse(
                 id=str(order.id),
                 plot_id=str(order.plot_id),
-                customer_name=order.customer_name,
+                first_name=order.first_name,
+                last_name=order.last_name,
                 customer_phone=order.customer_phone,
                 customer_email=order.customer_email,
-                customer_id_number=order.customer_id_number,
-                intended_use=order.intended_use,
-                notes=order.notes,
                 status=order.status,
                 created_at=order.created_at,
                 updated_at=order.updated_at
@@ -92,12 +89,10 @@ class OrderService:
                     po.id::text,
                     po.plot_id::text,
                     lp.plot_code,
-                    po.customer_name,
+                    po.first_name,
+                    po.last_name,
                     po.customer_phone,
                     po.customer_email,
-                    po.customer_id_number,
-                    po.intended_use,
-                    po.notes,
                     po.status,
                     po.created_at,
                     po.updated_at
@@ -129,12 +124,10 @@ class OrderService:
                     "id": order.id,
                     "plot_id": order.plot_id,
                     "plot_code": order.plot_code,
-                    "customer_name": order.customer_name,
+                    "first_name": order.first_name,
+                    "last_name": order.last_name,
                     "customer_phone": order.customer_phone,
                     "customer_email": order.customer_email,
-                    "customer_id_number": order.customer_id_number,
-                    "intended_use": order.intended_use,
-                    "notes": order.notes,
                     "status": order.status,
                     "created_at": order.created_at.isoformat() + "Z",
                     "updated_at": order.updated_at.isoformat() + "Z"

@@ -64,12 +64,10 @@ class PlotOrder(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     plot_id = Column(UUID(as_uuid=True), ForeignKey('land_plots.id'), nullable=False, index=True)
-    customer_name = Column(String(200), nullable=False)
+    first_name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=False)
     customer_phone = Column(String(20), nullable=False)
-    customer_email = Column(String(200), nullable=True)
-    customer_id_number = Column(String(50), nullable=False, index=True)
-    intended_use = Column(String(50), nullable=False)
-    notes = Column(Text, nullable=True)
+    customer_email = Column(String(200), nullable=False)
     status = Column(
         String(20), 
         nullable=False, 
@@ -85,14 +83,10 @@ class PlotOrder(Base):
     # Constraints
     __table_args__ = (
         CheckConstraint(
-            "intended_use IN ('residential', 'commercial', 'agricultural', 'industrial', 'mixed')",
-            name='check_intended_use'
-        ),
-        CheckConstraint(
             "status IN ('pending', 'approved', 'rejected')",
             name='check_order_status'
         ),
     )
     
     def __repr__(self):
-        return f"<PlotOrder(customer_name='{self.customer_name}', status='{self.status}')>"
+        return f"<PlotOrder(first_name='{self.first_name}', last_name='{self.last_name}', status='{self.status}')>"

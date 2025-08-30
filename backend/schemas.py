@@ -22,17 +22,21 @@ class OrderStatus(str, Enum):
     rejected = "rejected"
 
 class PlotOrderCreate(BaseModel):
-    customer_name: str
+    first_name: str
+    last_name: str
     customer_phone: str
-    customer_email: Optional[EmailStr] = None
-    customer_id_number: str
-    intended_use: IntendedUse
-    notes: Optional[str] = None
+    customer_email: EmailStr
     
-    @validator('customer_name')
-    def validate_customer_name(cls, v):
+    @validator('first_name')
+    def validate_first_name(cls, v):
         if not v or len(v.strip()) < 2:
-            raise ValueError('Customer name must be at least 2 characters long')
+            raise ValueError('First name must be at least 2 characters long')
+        return v.strip()
+    
+    @validator('last_name')
+    def validate_last_name(cls, v):
+        if not v or len(v.strip()) < 2:
+            raise ValueError('Last name must be at least 2 characters long')
         return v.strip()
     
     @validator('customer_phone')
@@ -44,22 +48,14 @@ class PlotOrderCreate(BaseModel):
         if not phone.startswith('+255') and not phone.startswith('255') and not phone.startswith('0'):
             raise ValueError('Phone number must be a valid Tanzania number')
         return phone
-    
-    @validator('customer_id_number')
-    def validate_customer_id_number(cls, v):
-        if not v or len(v.strip()) < 5:
-            raise ValueError('Customer ID number must be at least 5 characters long')
-        return v.strip()
 
 class PlotOrderResponse(BaseModel):
     id: str
     plot_id: str
-    customer_name: str
+    first_name: str
+    last_name: str
     customer_phone: str
-    customer_email: Optional[str]
-    customer_id_number: str
-    intended_use: str
-    notes: Optional[str]
+    customer_email: str
     status: str
     created_at: datetime
     updated_at: datetime
@@ -96,12 +92,10 @@ class OrderWithPlot(BaseModel):
     id: str
     plot_id: str
     plot_code: str
-    customer_name: str
+    first_name: str
+    last_name: str
     customer_phone: str
-    customer_email: Optional[str]
-    customer_id_number: str
-    intended_use: str
-    notes: Optional[str]
+    customer_email: str
     status: str
     created_at: datetime
     updated_at: datetime

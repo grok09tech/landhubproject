@@ -36,7 +36,7 @@ npm install
 cp .env.example .env
 
 # Update .env with your API URL
-VITE_API_URL=http://localhost:8000
+VITE_API_URL= # Set in Netlify Environment Variables
 
 # Start development server
 npm run dev
@@ -194,9 +194,9 @@ See `docs/ARCHITECTURE_MVS.md` for full details.
 
 **Frontend (.env)**:
 ```env
-VITE_API_URL=https://your-backend.railway.app
-VITE_SUPABASE_URL=https://yourproject.supabase.co
-VITE_SUPABASE_ANON_KEY=your_anon_key
+VITE_API_URL= # Set in Netlify Environment Variables
+VITE_SUPABASE_URL= # Set in Netlify Environment Variables
+VITE_SUPABASE_ANON_KEY= # Set in Netlify Environment Variables
 ```
 
 **Backend (.env)**:

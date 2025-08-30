@@ -166,20 +166,20 @@ class PlotService {
       console.log(`Creating order for plot ${plotId}:`, orderData);
       
       // Validate order data
-      if (!orderData.customer_name?.trim()) {
-        throw new Error('Customer name is required');
+      if (!orderData.first_name?.trim()) {
+        throw new Error('First name is required');
+      }
+      
+      if (!orderData.last_name?.trim()) {
+        throw new Error('Last name is required');
       }
       
       if (!orderData.customer_phone?.trim()) {
         throw new Error('Customer phone is required');
       }
       
-      if (!orderData.customer_id_number?.trim()) {
-        throw new Error('Customer ID number is required');
-      }
-      
-      if (!orderData.intended_use) {
-        throw new Error('Intended use is required');
+      if (!orderData.customer_email?.trim()) {
+        throw new Error('Customer email is required');
       }
       
       const response = await this.fetchWithErrorHandling(

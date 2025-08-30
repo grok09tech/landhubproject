@@ -60,6 +60,7 @@ interface FeatureProperties {
   id: string;
   block_number?: string;
   plot_number?: string;
+  attributes?: any; // Shapefile attributes from database
 }
 
 // Enhanced geometry validation (unchanged)
@@ -223,6 +224,7 @@ const MapView: React.FC = () => {
   const labelLayerRef = useRef<L.LayerGroup | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const initializingRef = useRef(false);
+  const plotsRef = useRef<Plot[]>([]); // Store plots in ref for popup callbacks
 
   // State
   const [plots, setPlots] = useState<Plot[]>([]);
@@ -239,53 +241,120 @@ const MapView: React.FC = () => {
   /** 📌 Handles plot click */
   const handlePlotClick = useCallback(
     (plotId: string) => {
-      const plot = plots.find((p) => p.id === plotId);
+      console.log('[MapView] handlePlotClick called with plotId:', plotId);
+      console.log('[MapView] Available plots in ref (first 3):', plotsRef.current.slice(0, 3).map(p => ({ id: p.id, plot_code: p.plot_code })));
+
+      // Try to find plot by id first
+      let plot = plotsRef.current.find((p) => p.id === plotId);
+
+      // If not found by id, try by plot_code
       if (!plot) {
-        console.error("[MapView] Plot not found:", plotId);
+        plot = plotsRef.current.find((p) => p.plot_code === plotId);
+        console.log('[MapView] Found plot by plot_code:', plot ? plot.id : 'not found');
+      }
+
+      // If still not found, try partial match on id
+      if (!plot) {
+        plot = plotsRef.current.find((p) => p.id && p.id.includes(plotId));
+        console.log('[MapView] Found plot by partial id match:', plot ? plot.id : 'not found');
+      }
+
+      if (!plot) {
+        console.error("[MapView] Plot not found with any method:", plotId);
         return;
       }
+
+      console.log('[MapView] Found plot:', { id: plot.id, plot_code: plot.plot_code, status: plot.status });
       if (plot.status === "available") {
+        console.log('[MapView] Opening modal for plot:', plotId);
         setSelectedPlot(plot);
         setIsModalOpen(true);
+      } else {
+        console.log('[MapView] Plot not available:', plot.status);
       }
     },
-    [plots]
-  );
-
-  /** 📌 Create popup content (unchanged) */
-  const createPopupContent = (feature: { properties: FeatureProperties }, plotId: string) => {
-    const container = L.DomUtil.create("div", "p-3 min-w-[280px]");
-    const { plot_code, status, area_hectares, block_number, plot_number } = feature.properties;
+    []
+  );  /** 📌 Create popup content (unchanged) */
+  const createPopupContent = useCallback((feature: { properties: FeatureProperties }, plotId: string) => {
+    const container = L.DomUtil.create("div", "p-3 min-w-[320px] max-w-[400px]");
+    const { plot_code, status, area_hectares, block_number, plot_number, attributes } = feature.properties;
 
     // Convert to square meters
     const areaSquareMeters = (area_hectares * 10000).toLocaleString();
 
-    const header = L.DomUtil.create("div", "flex justify-between items-start mb-2", container);
+    // Extract all data from attributes (shapefile data)
+    const blockNumber = attributes?.Block_numb || attributes?.block_numb || block_number || 'N/A';
+    const intendedUse = attributes?.Land_use || attributes?.land_use || 'Not specified';
+    const plotNumber = attributes?.Plot_Numb || attributes?.plot_numb || plot_number || plot_code;
+    const registrationNumber = attributes?.reg_pn || attributes?.Reg_pn || 'N/A';
+    const locality = attributes?.Locality || attributes?.locality || 'N/A';
+    const council = attributes?.Council || attributes?.council || 'N/A';
+    const region = attributes?.Region || attributes?.region || 'N/A';
+    const titlePlanNumber = attributes?.tp_number || attributes?.Tp_number || 'N/A';
+    const unit = attributes?.Unit || attributes?.unit || 'Sqm';
+    const fid = attributes?.fid || attributes?.FID || 'N/A';
+    const calculatedArea = attributes?.Cal_Area || attributes?.cal_area || area_hectares;
+
+    const header = L.DomUtil.create("div", "flex justify-between items-start mb-3", container);
     const title = L.DomUtil.create("h3", "font-bold text-lg text-gray-800", header);
     title.textContent = `Plot ${plot_code}`;
     const badge = L.DomUtil.create("span", `px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeClass(status)}`, header);
     badge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
 
-    const details = L.DomUtil.create("div", "space-y-1 text-sm text-gray-600 mb-3", container);
-    const area = L.DomUtil.create("div", "", details);
-    area.innerHTML = `<strong>Area:</strong> ${areaSquareMeters} m²`;
-    const blockNum = L.DomUtil.create("div", "", details);
-    blockNum.innerHTML = `<strong>Block Number:</strong> ${block_number || 'N/A'}`;
-    const plotNum = L.DomUtil.create("div", "", details);
-    plotNum.innerHTML = `<strong>Plot Number:</strong> ${plot_number || plot_code}`;
+    const details = L.DomUtil.create("div", "space-y-2 text-sm text-gray-600 mb-4", container);
+
+    // Basic information
+    const area = L.DomUtil.create("div", "flex justify-between", details);
+    area.innerHTML = `<strong>Area:</strong> <span>${areaSquareMeters} ${unit}</span>`;
+
+    const blockNum = L.DomUtil.create("div", "flex justify-between", details);
+    blockNum.innerHTML = `<strong>Block Number:</strong> <span>${blockNumber}</span>`;
+
+    const plotNum = L.DomUtil.create("div", "flex justify-between", details);
+    plotNum.innerHTML = `<strong>Plot Number:</strong> <span>${plotNumber}</span>`;
+
+    // Land use information
+    const landUse = L.DomUtil.create("div", "flex justify-between", details);
+    landUse.innerHTML = `<strong>Intended Use:</strong> <span>${intendedUse}</span>`;
+
+    // Registration information
+    const regNum = L.DomUtil.create("div", "flex justify-between", details);
+    regNum.innerHTML = `<strong>Registration No:</strong> <span>${registrationNumber}</span>`;
+
+    const tpNum = L.DomUtil.create("div", "flex justify-between", details);
+    tpNum.innerHTML = `<strong>Title Plan No:</strong> <span>${titlePlanNumber}</span>`;
+
+    // Location information
+    const loc = L.DomUtil.create("div", "flex justify-between", details);
+    loc.innerHTML = `<strong>Locality:</strong> <span>${locality}</span>`;
+
+    const coun = L.DomUtil.create("div", "flex justify-between", details);
+    coun.innerHTML = `<strong>Council:</strong> <span>${council}</span>`;
+
+    const reg = L.DomUtil.create("div", "flex justify-between", details);
+    reg.innerHTML = `<strong>Region:</strong> <span>${region}</span>`;
+
+    // Additional technical information
+    const fidInfo = L.DomUtil.create("div", "flex justify-between", details);
+    fidInfo.innerHTML = `<strong>FID:</strong> <span>${fid}</span>`;
+
+    const calcArea = L.DomUtil.create("div", "flex justify-between", details);
+    calcArea.innerHTML = `<strong>Calculated Area:</strong> <span>${calculatedArea} ${unit}</span>`;
 
     if (status === "available") {
       const button = L.DomUtil.create(
         "button",
-        "w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium cursor-pointer",
+        "w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium cursor-pointer mt-3",
         container
       );
       button.textContent = "Order This Plot";
       button.type = "button"; // Ensure it's not treated as a submit button
 
-      // Use addEventListener for better event handling
-      L.DomEvent.on(button, 'click', (e) => {
-        L.DomEvent.stopPropagation(e); // Prevent event bubbling
+      // Use standard addEventListener for reliable event handling
+      button.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('[MapView] Order button clicked for plot:', plotId);
         handlePlotClick(plotId);
       });
 
@@ -294,14 +363,14 @@ const MapView: React.FC = () => {
     } else {
       const div = L.DomUtil.create(
         "div",
-        "w-full px-4 py-2 bg-gray-300 text-gray-600 rounded-lg text-center font-medium",
+        "w-full px-4 py-2 bg-gray-300 text-gray-600 rounded-lg text-center font-medium mt-3",
         container
       );
       div.textContent = "Plot Not Available";
     }
 
     return container;
-  };
+  }, [handlePlotClick]);
 
   /** 📌 Create plot labels (unchanged) */
   const createPlotLabels = useCallback((plotsData: Plot[]) => {
@@ -373,6 +442,7 @@ const MapView: React.FC = () => {
   /** 📌 Render plots */
   const renderPlots = useCallback(
     (plotsData: Plot[]) => {
+      console.log('[MapView] renderPlots called with', plotsData.length, 'plots');
       if (!mapRef.current || !isMapInitialized) {
         console.warn("[MapView] Cannot render plots: map is not initialized");
         setLoading(false);
@@ -413,6 +483,7 @@ const MapView: React.FC = () => {
               id: plot.id || `plot-${index}`,
               block_number: (plot as any).block_number || "N/A",
               plot_number: (plot as any).plot_number || plot.plot_code || plot.id,
+              attributes: plot.attributes || {}, // Explicitly include attributes
             },
             geometry: plot.geometry,
           };
@@ -433,6 +504,8 @@ const MapView: React.FC = () => {
           },
           onEachFeature: (feature, layer) => {
             const plotId = feature.properties.id;
+            const correspondingPlot = plotsData.find(p => p.id === plotId);
+            console.log('[MapView] onEachFeature - plotId from feature:', plotId, 'found corresponding plot:', correspondingPlot ? correspondingPlot.id : 'not found');
             layer.on({
               mouseover: (e) => {
                 const target = e.target;
@@ -473,30 +546,51 @@ const MapView: React.FC = () => {
         setLoading(false);
       }
     },
-    [handlePlotClick, isMapInitialized, createPlotLabels]
+    [isMapInitialized, createPlotLabels, createPopupContent]
   );
+
+  const loadingPlotsRef = useRef(false);
 
   /** 📌 Load plots */
   const loadPlots = useCallback(async () => {
-    // Changed: Only load if map is initialized and no plots are loaded
-    if (!isMapInitialized || plots.length > 0) {
-      console.warn("[MapView] Skipping plot loading: map not initialized or plots already loaded");
+    console.log('[MapView] loadPlots called - isMapInitialized:', isMapInitialized, 'plots.length:', plots.length, 'loading:', loadingPlotsRef.current);
+
+    // Only load if map is initialized
+    if (!isMapInitialized) {
+      console.warn("[MapView] Skipping plot loading: map not initialized");
       return;
     }
+
+    // Prevent duplicate loading
+    if (loadingPlotsRef.current) {
+      console.warn("[MapView] Skipping plot loading: already loading");
+      return;
+    }
+
+    // Don't load if we already have plots
+    if (plotsRef.current.length > 0) {
+      console.warn("[MapView] Skipping plot loading: plots already loaded");
+      return;
+    }
+
+    loadingPlotsRef.current = true;
+
     try {
       setLoading(true);
       setError(null);
 
-  // const controller = new AbortController();
-  // const signal = controller.signal;
+      console.log('[MapView] Starting to load plots from API...');
+      const plotsData = await plotService.getAllPlots();
+      console.log('[MapView] Received plots data:', plotsData?.length || 0, 'plots');
 
-  const plotsData = await plotService.getAllPlots();
       if (!plotsData?.length) {
         setError("No land plots available.");
         return;
       }
 
+      console.log('[MapView] Setting plots state with', plotsData.length, 'plots');
       setPlots(plotsData);
+      plotsRef.current = plotsData; // Store in ref for popup callbacks
       renderPlots(plotsData);
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
@@ -507,8 +601,9 @@ const MapView: React.FC = () => {
       setError("Failed to load plots. Please check your network or try again.");
     } finally {
       setLoading(false);
+      loadingPlotsRef.current = false;
     }
-  }, [isMapInitialized, plots.length, renderPlots]);
+  }, [isMapInitialized, renderPlots]);
 
   /** 📌 Initialize map */
   const initMap = useCallback(() => {
@@ -601,10 +696,11 @@ const MapView: React.FC = () => {
       setOrderError(null);
       try {
         await plotService.createOrder(selectedPlot.id, orderData);
-        const updatedPlots = plots.map((p) =>
+        const updatedPlots = plotsRef.current.map((p) =>
           p.id === selectedPlot.id ? { ...p, status: "pending" as const } : p
         );
         setPlots(updatedPlots);
+        plotsRef.current = updatedPlots; // Update ref as well
         renderPlots(updatedPlots);
         setSelectedPlot(null);
         setIsModalOpen(false);
@@ -613,7 +709,7 @@ const MapView: React.FC = () => {
         setOrderError("Failed to submit order. Please try again.");
       }
     },
-    [selectedPlot, plots, renderPlots]
+    [selectedPlot, renderPlots]
   );
 
   /** 📌 Initialize map and load plots */

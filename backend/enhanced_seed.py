@@ -877,12 +877,10 @@ def ensure_database_schema():
                 CREATE TABLE IF NOT EXISTS plot_orders (
                     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
                     plot_id uuid NOT NULL REFERENCES land_plots(id) ON DELETE CASCADE,
-                    customer_name text NOT NULL,
+                    first_name text NOT NULL,
+                    last_name text NOT NULL,
                     customer_phone text NOT NULL,
-                    customer_email text,
-                    customer_id_number text NOT NULL,
-                    intended_use text NOT NULL CHECK (intended_use IN ('residential','commercial','agricultural','industrial','mixed')),
-                    notes text,
+                    customer_email text NOT NULL,
                     status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
                     created_at timestamptz NOT NULL DEFAULT now(),
                     updated_at timestamptz NOT NULL DEFAULT now()
