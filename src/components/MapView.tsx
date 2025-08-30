@@ -533,8 +533,8 @@ const MapView: React.FC = () => {
       const map = L.map(containerRef.current, {
         center: [-6.369028, 34.888822], // Tanzania center
         zoom: 6,
-        minZoom: 4,
-        maxZoom: 18,
+        minZoom: 10,
+        maxZoom: 46,
         attributionControl: true,
         zoomControl: true,
       });
