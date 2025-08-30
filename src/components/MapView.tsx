@@ -405,7 +405,13 @@ const MapView: React.FC = () => {
         return;
       }
 
-      const plotNum = (plot as any).plot_number || plot.plot_code || plot.id || `Plot-${index}`;
+      // Extract just the numeric part from plot code (e.g., "test_mbuyuni_0019" -> "0019")
+      const extractPlotNumber = (plotCode: string): string => {
+        const match = plotCode.match(/(\d+)$/);
+        return match ? match[1] : plotCode;
+      };
+
+      const plotNum = extractPlotNumber((plot as any).plot_number || plot.plot_code || plot.id || `Plot-${index}`);
 
       const labelIcon = L.divIcon({
         className: "plot-label",
