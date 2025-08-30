@@ -277,11 +277,20 @@ const MapView: React.FC = () => {
     if (status === "available") {
       const button = L.DomUtil.create(
         "button",
-        "w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium",
+        "w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium cursor-pointer",
         container
       );
       button.textContent = "Order This Plot";
-      button.onclick = () => handlePlotClick(plotId);
+      button.type = "button"; // Ensure it's not treated as a submit button
+
+      // Use addEventListener for better event handling
+      L.DomEvent.on(button, 'click', (e) => {
+        L.DomEvent.stopPropagation(e); // Prevent event bubbling
+        handlePlotClick(plotId);
+      });
+
+      // Prevent map interactions when clicking the button
+      L.DomEvent.disableClickPropagation(button);
     } else {
       const div = L.DomUtil.create(
         "div",
