@@ -24,12 +24,10 @@ CREATE TABLE IF NOT EXISTS public.land_plots (
 CREATE TABLE IF NOT EXISTS public.plot_orders (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     plot_id uuid NOT NULL REFERENCES public.land_plots(id) ON DELETE CASCADE,
-    customer_name text NOT NULL,
+    first_name text NOT NULL,
+    last_name text NOT NULL,
     customer_phone text NOT NULL,
-    customer_email text,
-    customer_id_number text NOT NULL,
-    intended_use text NOT NULL CHECK (intended_use IN ('residential','commercial','agricultural','industrial','mixed')),
-    notes text,
+    customer_email text NOT NULL,
     status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
@@ -44,7 +42,6 @@ CREATE INDEX IF NOT EXISTS idx_land_plots_geom ON public.land_plots USING GIST (
 CREATE INDEX IF NOT EXISTS idx_land_plots_dataset ON public.land_plots(dataset_name);
 CREATE INDEX IF NOT EXISTS idx_plot_orders_plot_id ON public.plot_orders(plot_id);
 CREATE INDEX IF NOT EXISTS idx_plot_orders_status ON public.plot_orders(status);
-CREATE INDEX IF NOT EXISTS idx_plot_orders_customer_id_number ON public.plot_orders(customer_id_number);
 
 -- Trigger to keep updated_at current
 CREATE OR REPLACE FUNCTION set_updated_at_timestamp()
